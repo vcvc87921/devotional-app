@@ -1,5 +1,3 @@
-bash
-
 cat << 'EOF'
 const https = require('https');
 
