@@ -1,4 +1,4 @@
-export const config = { runtime: 'edge' };
+module.exports = async function handler(req, res)
 
 const checkinPhrases = [
   "今天我刻意尋求了祂","神與我同行，今日已到","我來了，祂在這裡",
