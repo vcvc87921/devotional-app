@@ -1,1 +1,3 @@
-{}
+{
+  "rewrites": [{ "source": "/api/daily", "destination": "/api/daily.js" }]
+}
