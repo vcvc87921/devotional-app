@@ -16,11 +16,29 @@ export default async function handler(req) {
   const d = new Date();
   const day = Math.floor((d - new Date(d.getFullYear(),0,0))/86400000);
   const phrase = checkinPhrases[day % checkinPhrases.length];
+  const todayKey = `devotional_${d.getFullYear()}_${String(d.getMonth()+1).padStart(2,'0')}_${String(d.getDate()).padStart(2,'0')}`;
   const today = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'API Key 未設定' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  const kvUrl = process.env.KV_REST_API_URL;
+  const kvToken = process.env.KV_REST_API_TOKEN;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+
+  // 先讀 KV 快取
+  try {
+    const kvRes = await fetch(`${kvUrl}/get/${todayKey}`, {
+      headers: { Authorization: `Bearer ${kvToken}` }
+    });
+    const kvData = await kvRes.json();
+    if (kvData.result) {
+      const cached = JSON.parse(kvData.result);
+      return new Response(JSON.stringify({ ...cached, phrase }), { headers });
+    }
+  } catch(e) {}
+
+  // 沒有快取才呼叫 Claude
+  if (!anthropicKey) {
+    return new Response(JSON.stringify({ error: 'API Key 未設定' }), { status: 500, headers });
   }
 
   const prompt = `你是一位深刻的基督徒靈修引導者，幫助基督徒每天跟隨神。今天是 ${today}。請優先從詩篇、箴言、其次為整本聖經當中選一段「適合每天默想、很容易把心帶回神面前」的經文(若某節經文單獨閱讀容易造成誤解，請優先改選另一段更適合單節默想的經文；若仍需要背景，請用 2–4 句說明上下文，不要額外引用太長的經文範圍)。經文版本請使用 CCB 中文當代譯本。經文內容必須忠於 CCB 原文，不要自行改寫、意譯或美化。如果無法確認 CCB 的準確經文內容，請只提供經文出處，不要憑記憶引用。避免族譜、儀式條文、審判段落。選關於神的愛、信心、追求神、禱告、盼望、倚靠、平安、更新、得勝、同在的主題。根據這段經文，為一個想與神同在、渴望不被日常打敗、想每天刻意跟隨神的基督徒寫出：1.早晨提醒(2-3句，直接對這個人說話，不說教，像朋友提醒你今天可以怎麼活在這段話裡) 2.今日信心行動(1件今天具體可以做到的事，不是感覺，是行動) 3.晚上反思(1個誠實的問題，幫助他回顧今天有沒有活出來)。語氣真實、溫暖、直接，不要宗教腔，不要說教。只回覆JSON：{"scripture":"經文(繁體中文)","ref":"書卷 章:節","morning":"早晨提醒","action":"信心行動","evening":"晚上反思"}`;
@@ -30,7 +48,7 @@ export default async function handler(req) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey,
+        "x-api-key": anthropicKey,
         "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify({
@@ -44,14 +62,16 @@ export default async function handler(req) {
     const text = result.content[0].text.trim();
     const json = JSON.parse(text.replace(/```json|```/g, "").trim());
 
-    return new Response(JSON.stringify({ ...json, phrase }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    // 存進 KV，25 小時後過期
+    await fetch(`${kvUrl}/set/${todayKey}/ex/90000`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${kvToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(json)
     });
+
+    return new Response(JSON.stringify({ ...json, phrase }), { headers });
   } catch(e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers });
   }
 }
 
