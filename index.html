@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日跟隨神</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #FAF6EE; color: #1C1008;
+  font-family: "Noto Serif TC", serif;
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; padding: 28px 20px 40px;
+}
+body::before {
+  content: ""; position: fixed; inset: 0;
+  background: radial-gradient(ellipse 70% 40% at 50% 0%, rgba(180,140,60,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.container { width: 100%; max-width: 460px; position: relative; }
+.header { text-align: center; margin-bottom: 28px; animation: fadeDown 0.7s ease both; }
+.header-title { font-family: "Cinzel", serif; font-size: 11px; letter-spacing: 4px; color: #8B6010; margin-bottom: 6px; }
+.date-display { font-size: 13px; color: rgba(28,16,8,0.5); letter-spacing: 1px; }
+.card {
+  background: #fff; border: 1px solid rgba(139,96,16,0.15); border-radius: 3px;
+  padding: 36px 32px; box-shadow: 0 2px 20px rgba(139,96,16,0.06);
+  animation: fadeUp 0.8s ease 0.1s both; position: relative; overflow: hidden;
+}
+.card::before {
+  content: ""; position: absolute; top: 0; left: 20%; right: 20%;
+  height: 2px; background: linear-gradient(90deg, transparent, #C9A84C, transparent);
+}
+.loading { text-align: center; padding: 40px 0; color: rgba(28,16,8,0.4); font-size: 14px; letter-spacing: 1px; }
+.loading-dot { display: inline-block; animation: pulse 1.2s ease infinite; }
+.loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes pulse { 0%,80%,100%{opacity:0.3} 40%{opacity:1} }
+.section-tag {
+  font-family: "Cinzel", serif; font-size: 9px; letter-spacing: 3px;
+  color: #8B6010; opacity: 0.8; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-tag::after { content: ""; flex: 1; height: 1px; background: rgba(139,96,16,0.15); }
+.scripture-block { margin-bottom: 28px; }
+.scripture-text { font-size: 17px; line-height: 1.85; color: #1C1008; margin-bottom: 10px; font-style: italic; }
+.scripture-ref { font-size: 11px; color: #8B6010; letter-spacing: 1.5px; }
+.divider { border: none; height: 1px; background: rgba(139,96,16,0.1); margin: 24px 0; }
+.morning-block { margin-bottom: 24px; }
+.prompt-text { font-size: 15px; line-height: 1.9; color: #1C1008; }
+.action-block { background: rgba(139,96,16,0.05); border-left: 3px solid #C9A84C; padding: 16px 18px; margin-bottom: 24px; }
+.action-label { font-size: 10px; letter-spacing: 2px; color: #8B6010; margin-bottom: 8px; }
+.action-text { font-size: 14px; line-height: 1.8; color: #1C1008; }
+.evening-block { background: rgba(139,96,16,0.03); border: 1px solid rgba(139,96,16,0.12); padding: 18px; border-radius: 2px; margin-bottom: 28px; }
+.evening-question { font-size: 14px; line-height: 1.85; color: #1C1008; font-style: italic; }
+.checkin-btn {
+  width: 100%; padding: 16px 24px; border: 2px solid #C9A84C; border-radius: 2px;
+  background: transparent; color: #8B6010; font-family: "Noto Serif TC", serif;
+  font-size: 15px; font-weight: 600; letter-spacing: 1px; cursor: pointer; transition: all 0.3s ease;
+}
+.checkin-btn:hover { background: rgba(201,168,76,0.08); }
+.checkin-btn.checked { background: #C9A84C; color: #fff; border-color: #C9A84C; cursor: default; }
+.error-box { text-align: center; padding: 32px 0; color: rgba(28,16,8,0.45); font-size: 14px; line-height: 1.9; }
+.retry-btn { margin-top: 12px; background: none; border: 1px solid #C9A84C; color: #8B6010; padding: 8px 24px; font-family: "Noto Serif TC", serif; font-size: 13px; cursor: pointer; border-radius: 2px; }
+.footer-verse { text-align: center; margin-top: 28px; font-size: 11px; color: rgba(28,16,8,0.35); letter-spacing: 1.5px; line-height: 1.9; animation: fadeUp 0.8s ease 0.25s both; }
+@keyframes fadeDown { from{opacity:0;transform:translateY(-12px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+.hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="header-title">每日跟隨神</div>
+    <div class="date-display" id="dateDisplay"></div>
+  </div>
+  <div class="card">
+    <div id="loadingArea" class="loading">
+      神正在預備今日的話語
+      <span class="loading-dot">．</span>
+      <span class="loading-dot">．</span>
+      <span class="loading-dot">．</span>
+    </div>
+    <div id="errorArea" class="error-box hidden">
+      <div id="errorMsg">今日內容暫時無法載入</div>
+      <button class="retry-btn" onclick="load()">重試</button>
+    </div>
+    <div id="contentArea" class="hidden">
+      <div class="section-tag">今日經文</div>
+      <div class="scripture-block">
+        <div class="scripture-text" id="scriptureText"></div>
+        <div class="scripture-ref" id="scriptureRef"></div>
+      </div>
+      <hr class="divider">
+      <div class="morning-block">
+        <div class="section-tag">早晨提醒</div>
+        <div class="prompt-text" id="morningText"></div>
+      </div>
+      <div class="action-block">
+        <div class="action-label">今日信心行動</div>
+        <div class="action-text" id="actionText"></div>
+      </div>
+      <div class="evening-block">
+        <div class="section-tag">晚上反思</div>
+        <div class="evening-question" id="eveningText"></div>
+      </div>
+      <button class="checkin-btn" id="checkinBtn" onclick="doCheckin()"></button>
+    </div>
+  </div>
+  <div class="footer-verse">「你們親近神，神就親近你們。」<br>雅各書 4:8</div>
+</div>
+<script>
+function getCheckinKey() {
+  const d = new Date();
+  return `checkin_${d.getFullYear()}_${d.getMonth()}_${d.getDate()}`;
+}
+function formatDate() {
+  const d = new Date();
+  const days = ["週日","週一","週二","週三","週四","週五","週六"];
+  return `${d.getFullYear()} / ${d.getMonth()+1} / ${d.getDate()}　${days[d.getDay()]}`;
+}
+function show(id) {
+  ["loadingArea","errorArea","contentArea"].forEach(i =>
+    document.getElementById(i).classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+}
+function doCheckin() {
+  const btn = document.getElementById("checkinBtn");
+  if (btn.classList.contains("checked")) return;
+  localStorage.setItem(getCheckinKey(), "1");
+  btn.classList.add("checked");
+  btn.textContent = "✓  " + btn.dataset.phrase;
+}
+async function load() {
+  show("loadingArea");
+  try {
+    const res = await fetch("/api/daily");
+    if (!res.ok) throw new Error("伺服器錯誤");
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById("scriptureText").textContent = data.scripture;
+    document.getElementById("scriptureRef").textContent = data.ref;
+    document.getElementById("morningText").textContent = data.morning;
+    document.getElementById("actionText").textContent = data.action;
+    document.getElementById("eveningText").textContent = data.evening;
+
+    const btn = document.getElementById("checkinBtn");
+    btn.dataset.phrase = data.phrase;
+    if (localStorage.getItem(getCheckinKey()) === "1") {
+      btn.textContent = "✓  " + data.phrase;
+      btn.classList.add("checked");
+    } else {
+      btn.textContent = data.phrase;
+    }
+    show("contentArea");
+  } catch(e) {
+    document.getElementById("errorMsg").textContent = "今日內容暫時無法載入，請稍後再試。";
+    show("errorArea");
+  }
+}
+document.getElementById("dateDisplay").textContent = formatDate();
+load();
+</script>
+</body>
+</html>
